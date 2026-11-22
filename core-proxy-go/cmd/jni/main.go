@@ -3,20 +3,19 @@ package main
 /*
 #include <jni.h>
 #include <stdlib.h>
-#include <string.h>
 
-static const char* get_string_utf_chars(JNIEnv* env, jstring str) {
+static const char* safe_get_string(JNIEnv *env, jstring str) {
     if (str == NULL) return NULL;
     return (*env)->GetStringUTFChars(env, str, NULL);
 }
 
-static void release_string_utf_chars(JNIEnv* env, jstring str, const char* chars) {
+static void safe_release_string(JNIEnv *env, jstring str, const char* chars) {
     if (str != NULL && chars != NULL) {
         (*env)->ReleaseStringUTFChars(env, str, chars);
     }
 }
 
-static jstring new_string_utf(JNIEnv* env, const char* str) {
+static jstring safe_new_string(JNIEnv *env, const char* str) {
     if (str == NULL) return NULL;
     return (*env)->NewStringUTF(env, str);
 }
@@ -181,21 +180,18 @@ func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_resetStats(
 }
 
 func jstringToString(env *C.JNIEnv, jstr C.jstring) string {
-	if jstr == nil {
-		return ""
-	}
-	cStr := C.get_string_utf_chars(env, jstr)
+	cStr := C.safe_get_string(env, jstr)
 	if cStr == nil {
 		return ""
 	}
-	defer C.release_string_utf_chars(env, jstr, cStr)
+	defer C.safe_release_string(env, jstr, cStr)
 	return C.GoString(cStr)
 }
 
 func stringToJstring(env *C.JNIEnv, str string) C.jstring {
 	cStr := C.CString(str)
 	defer C.free(unsafe.Pointer(cStr))
-	return C.new_string_utf(env, cStr)
+	return C.safe_new_string(env, cStr)
 }
 
 func main() {}
