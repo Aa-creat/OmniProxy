@@ -3,6 +3,23 @@ package main
 /*
 #include <jni.h>
 #include <stdlib.h>
+#include <string.h>
+
+static const char* get_string_utf_chars(JNIEnv* env, jstring str) {
+    if (str == NULL) return NULL;
+    return (*env)->GetStringUTFChars(env, str, NULL);
+}
+
+static void release_string_utf_chars(JNIEnv* env, jstring str, const char* chars) {
+    if (str != NULL && chars != NULL) {
+        (*env)->ReleaseStringUTFChars(env, str, chars);
+    }
+}
+
+static jstring new_string_utf(JNIEnv* env, const char* str) {
+    if (str == NULL) return NULL;
+    return (*env)->NewStringUTF(env, str);
+}
 */
 import "C"
 import (
@@ -20,8 +37,8 @@ var (
 	proxyMutex   sync.Mutex
 )
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startHttpProxy
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startHttpProxy(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startHttpProxy
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startHttpProxy(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	host C.jstring,
@@ -47,8 +64,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startHttpProxy(
 	return C.JNI_TRUE
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopHttpProxy
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopHttpProxy(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopHttpProxy
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopHttpProxy(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) {
@@ -61,8 +78,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopHttpProxy(
 	}
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startSocks5Proxy
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startSocks5Proxy(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startSocks5Proxy
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startSocks5Proxy(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	host C.jstring,
@@ -88,8 +105,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startSocks5Proxy(
 	return C.JNI_TRUE
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopSocks5Proxy
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopSocks5Proxy(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopSocks5Proxy
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopSocks5Proxy(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) {
@@ -102,8 +119,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopSocks5Proxy(
 	}
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startPacServer
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startPacServer(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startPacServer
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_startPacServer(
 	env *C.JNIEnv,
 	clazz C.jclass,
 	host C.jstring,
@@ -129,8 +146,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_startPacServer(
 	return C.JNI_TRUE
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopPacServer
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopPacServer(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopPacServer
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_stopPacServer(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) {
@@ -143,8 +160,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_stopPacServer(
 	}
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_getStatsJson
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_getStatsJson(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_getStatsJson
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_getStatsJson(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) C.jstring {
@@ -155,8 +172,8 @@ func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_getStatsJson(
 	return stringToJstring(env, string(data))
 }
 
-//export Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_resetStats
-func Java_io_github_aacreat_everyproxy_core_jni_NativeProxy_resetStats(
+//export Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_resetStats
+func Java_io_github_aacreat_omniproxy_core_jni_NativeProxy_resetStats(
 	env *C.JNIEnv,
 	clazz C.jclass,
 ) {
@@ -167,25 +184,18 @@ func jstringToString(env *C.JNIEnv, jstr C.jstring) string {
 	if jstr == nil {
 		return ""
 	}
-	// Call GetStringUTFChars via JNI
-	var isCopy C.jboolean
-	fns := (**C.JNINativeInterface)(unsafe.Pointer(env))
-	chars := C.CString("")
-	if fns != nil && (*fns).GetStringUTFChars != nil {
-		chars = (*fns).GetStringUTFChars(env, jstr, &isCopy)
-		defer (*fns).ReleaseStringUTFChars(env, jstr, chars)
+	cStr := C.get_string_utf_chars(env, jstr)
+	if cStr == nil {
+		return ""
 	}
-	return C.GoString(chars)
+	defer C.release_string_utf_chars(env, jstr, cStr)
+	return C.GoString(cStr)
 }
 
 func stringToJstring(env *C.JNIEnv, str string) C.jstring {
 	cStr := C.CString(str)
 	defer C.free(unsafe.Pointer(cStr))
-	fns := (**C.JNINativeInterface)(unsafe.Pointer(env))
-	if fns != nil && (*fns).NewStringUTF != nil {
-		return (*fns).NewStringUTF(env, cStr)
-	}
-	return nil
+	return C.new_string_utf(env, cStr)
 }
 
 func main() {}

@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# Target ABIs
 ABIS=("arm64-v8a" "armeabi-v7a" "x86_64")
 TARGET_DIR="../app/src/main/jniLibs"
 
@@ -52,6 +51,7 @@ for ABI in "${ABIS[@]}"; do
     GOARCH=$GOARCH \
     GOARM=$GOARM \
     CC=$CC \
+    CGO_CFLAGS="-I$TOOLCHAIN/sysroot/usr/include" \
     go build -v -buildmode=c-shared -ldflags="-s -w" -o "$OUTPUT_DIR/libomniproxy.so" cmd/jni/main.go
 
     echo "Generated: $OUTPUT_DIR/libomniproxy.so"
