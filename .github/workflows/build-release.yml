@@ -2,17 +2,11 @@ name: Build, Sign and Pre-Release
 
 on:
   push:
-    tags:
-      - 'v*'
     branches:
       - main
-      - master
+    tags:
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Release Tag'
-        required: false
-        default: 'v1.0.0-preview'
 
 permissions:
   contents: write
@@ -63,7 +57,7 @@ jobs:
           fi
           chmod +x gradlew
 
-      - name: Build Android Release APK (Unsigned)
+      - name: Build Android Release APK
         run: |
           ./gradlew assembleRelease --stacktrace
 
@@ -76,10 +70,8 @@ jobs:
 
           echo "Found compiled APK: $RAW_APK"
 
-          # 1. ZipAlign 4-byte boundary
           $ANDROID_BUILD_TOOLS/zipalign -v -p 4 "$RAW_APK" "$ALIGNED_APK"
 
-          # 2. Secure Signing Scheme (v2 + v3)
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "Using Production Keystore from GitHub Secrets"
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
@@ -95,7 +87,7 @@ jobs:
               "$ALIGNED_APK"
             rm -f keystore.jks
           else
-            echo "No Secret Keystore provided: Generating ephemeral CI Release Keystore"
+            echo "Generating CI Release Keystore"
             keytool -genkeypair -v \
               -keystore ci_release.jks \
               -alias omniproxy \
@@ -119,10 +111,8 @@ jobs:
             rm -f ci_release.jks
           fi
 
-          # 3. Verify Signature
           $ANDROID_BUILD_TOOLS/apksigner verify --verbose "$SIGNED_APK"
 
-          # 4. Generate SHA-256 Checksum
           cd release-artifacts
           sha256sum OmniProxy-release.apk > checksums-sha256.txt
           cat checksums-sha256.txt
@@ -130,30 +120,19 @@ jobs:
 
       - name: Create GitHub Pre-Release
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        run: |
-          TAG="${{ github.ref_name }}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag_name }}"
-          fi
-          if [ -z "$TAG" ]; then
-            TAG="v1.0.0-preview"
-          fi
-
-          gh release create "$TAG" \
-            --title "OmniProxy $TAG" \
-            --notes "### 🚀 OmniProxy (MD3E Expressive) 预发布版本
-
-          本版本由 GitHub Actions 安全构建并完成 APK v2/v3 签名校验。
-
-          - **Material Design 3 Expressive (MD3E)**：弹簧物理动效、大圆角与药丸形变、Monet 动态配色；
-          - **Go 原生网络核心驱动 (`libomniproxy.so`)**：高并发 HTTP/HTTPS CONNECT 隧道与 SOCKS5 代理；
-          - **VPN 热点共享与穿透**：单设备开启 VPN + 热点，从设备连入自动走本机 VPN 路由出口；
-          - **热点设备管理**：基于网络邻居/ARP 实时查看连接到热点的从设备与 IP/MAC；
-          - **PAC 动态配置与一键二维码配网**。
-
-          已通过 zipalign 内存对齐与 apksigner 严格签名校验。" \
-            --prerelease \
-            release-artifacts/OmniProxy-release.apk \
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          tag_name: ${{ github.ref_name }}
+          name: OmniProxy ${{ github.ref_name }}
+          body: |
+            ### OmniProxy Pre-Release
+            - Material Design 3 Expressive UI
+            - Go Native Proxy Core
+            - VPN Hotspot Sharing & Client Management
+            - Signed with v2/v3 signing scheme
+          files: |
+            release-artifacts/OmniProxy-release.apk
             release-artifacts/checksums-sha256.txt
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
