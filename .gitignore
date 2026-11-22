@@ -1,0 +1,23 @@
+# Build & Gradle
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+build/
+*/build/
+captures/
+.externalNativeBuild
+.cxx
+
+# APK and reference materials
+*.apk
+Every Proxy(com.gorillasoftware.everyproxy)*
+
+# Keystore / Secrets
+*.jks
+*.keystore
+
+# Go artifacts
+core-proxy-go/bin/
+*.so

@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">OmniProxy</string>
+    <string name="service_running">OmniProxy 服务运行中</string>
+    <string name="service_stopped">OmniProxy 服务已停止</string>
+    <string name="stop_service">停止</string>
+    <string name="start_service">启动</string>
+    <string name="http_proxy">HTTP / HTTPS 代理</string>
+    <string name="socks_proxy">SOCKS5 代理</string>
+    <string name="pac_server">PAC 自动代理服务</string>
+    <string name="hotspot_manager">热点共享与设备</string>
+    <string name="settings">设置</string>
+    <string name="connected_clients">热点连接设备</string>
+    <string name="no_clients">暂无热点连接设备</string>
+    <string name="quick_tile_label">OmniProxy</string>
+</resources>
