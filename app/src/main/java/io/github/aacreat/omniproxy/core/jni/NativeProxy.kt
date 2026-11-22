@@ -10,11 +10,11 @@ object NativeProxy {
 
     init {
         try {
-            System.loadLibrary("OmniProxy")
+            System.loadLibrary("omniproxy")
             isLoaded = true
-            Log.i(TAG, "libOmniProxy.so loaded successfully")
+            Log.i(TAG, "libomniproxy.so loaded successfully")
         } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "Failed to load libOmniProxy.so: ${e.message}. Using safe fallback.")
+            Log.w(TAG, "Failed to load libomniproxy.so: ${e.message}. Using safe fallback.")
             isLoaded = false
         }
     }
@@ -22,7 +22,7 @@ object NativeProxy {
     fun isNativeReady(): Boolean = isLoaded
 
     fun startHttp(host: String, port: Int, user: String, pass: String): Boolean {
-        if (!isLoaded) return true // Mock mode if native so is absent during preview
+        if (!isLoaded) return true
         return startHttpProxy(host, port, user, pass)
     }
 
@@ -69,7 +69,6 @@ object NativeProxy {
         if (isLoaded) resetStats()
     }
 
-    // JNI Declarations
     private external fun startHttpProxy(host: String, port: Int, user: String, pass: String): Boolean
     private external fun stopHttpProxy()
 

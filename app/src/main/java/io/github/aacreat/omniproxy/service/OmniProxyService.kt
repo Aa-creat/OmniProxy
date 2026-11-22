@@ -9,8 +9,8 @@ import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
-import io.github.aacreat.omniproxy.OmniProxyApplication
 import io.github.aacreat.omniproxy.MainActivity
+import io.github.aacreat.omniproxy.OmniProxyApplication
 import io.github.aacreat.omniproxy.R
 import io.github.aacreat.omniproxy.core.data.PreferencesManager
 import io.github.aacreat.omniproxy.core.jni.NativeProxy
@@ -90,7 +90,7 @@ class OmniProxyService : Service() {
             while (isActive) {
                 val stats = NativeProxy.getStats()
                 _statsState.value = stats
-                val content = "连接: ${stats.activeConnections} | 上传: ${formatBytes(stats.bytesUploaded)} | 下载: ${formatBytes(stats.bytesDownloaded)}"
+                val content = "连接: " + stats.activeConnections + " | 上传: " + formatBytes(stats.bytesUploaded) + " | 下载: " + formatBytes(stats.bytesDownloaded)
                 val notification = buildNotification(content)
                 val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
                 manager.notify(OmniProxyApplication.NOTIFICATION_ID, notification)
@@ -114,7 +114,7 @@ class OmniProxyService : Service() {
     private fun acquireLocks() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OmniProxy:WakeLock").apply {
-            acquire(10 * 60 * 1000L /* 10 mins auto-renew */)
+            acquire(10 * 60 * 1000L)
         }
 
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -147,7 +147,7 @@ class OmniProxyService : Service() {
 
         return NotificationCompat.Builder(this, OmniProxyApplication.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_tile_proxy)
-            .setContentTitle("Every Proxy 运行�?)
+            .setContentTitle("OmniProxy 运行中")
             .setContentText(contentText)
             .setContentIntent(pendingIntent)
             .addAction(R.drawable.ic_tile_proxy, "停止服务", stopPendingIntent)

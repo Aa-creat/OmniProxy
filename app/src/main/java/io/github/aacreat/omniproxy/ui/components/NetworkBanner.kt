@@ -6,7 +6,6 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
@@ -36,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.aacreat.omniproxy.ui.theme.AccentOnline
 import io.github.aacreat.omniproxy.ui.theme.AccentVpn
 import io.github.aacreat.omniproxy.ui.theme.CardInnerShape
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
@@ -88,13 +85,13 @@ fun NetworkBanner(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (isHotspotActive) "热点已就�? else "网络接口就绪",
+                            text = if (isHotspotActive) "热点已就绪" else "网络接口就绪",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
-                            text = "客户端推荐连�?IP: $hostIp",
+                            text = "客户端推荐连接 IP: $hostIp",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
@@ -105,7 +102,7 @@ fun NetworkBanner(
                     IconButton(onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Proxy IP", hostIp))
-                        Toast.makeText(context, "已复�?IP: $hostIp", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "已复制 IP: $hostIp", Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
@@ -140,7 +137,7 @@ fun NetworkBanner(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "手机已连�?VPN 隧道：热点连入设备将自动实现 VPN 透明穿透代理！",
+                        text = "手机已连接 VPN 隧道：热点连入设备将自动实现 VPN 透明穿透代理！",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         fontWeight = FontWeight.Medium

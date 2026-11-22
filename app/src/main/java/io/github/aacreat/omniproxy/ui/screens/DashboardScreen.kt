@@ -1,6 +1,5 @@
 package io.github.aacreat.omniproxy.ui.screens
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +44,6 @@ import io.github.aacreat.omniproxy.ui.components.ExpressiveProxyCard
 import io.github.aacreat.omniproxy.ui.components.NetworkBanner
 import io.github.aacreat.omniproxy.ui.components.QrCodeDialog
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
-import io.github.aacreat.omniproxy.ui.theme.PillShape
 import kotlinx.coroutines.launch
 
 @Composable
@@ -79,7 +76,6 @@ fun DashboardScreen(
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Network & VPN Status Banner
         NetworkBanner(
             hostIp = recommendedHost,
             isHotspotActive = isHotspotActive,
@@ -87,14 +83,12 @@ fun DashboardScreen(
             onShowQrCode = { qrCodeContent = it }
         )
 
-        // Master Service Control Button
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
             Button(
                 onClick = {
                     if (isRunning) {
                         OmniProxyService.stop(context)
                     } else {
-                        // Ensure at least HTTP is enabled if none is selected
                         if (!config.httpEnabled && !config.socksEnabled && !config.pacEnabled) {
                             scope.launch { prefs.updateHttp(true) }
                         }
@@ -122,17 +116,16 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // HTTP Proxy Card
         ExpressiveProxyCard(
             title = "HTTP / HTTPS 代理",
-            subtitle = "支持 CONNECT 隧道与网页请求转�?,
+            subtitle = "支持 CONNECT 隧道与网页请求转发",
             port = config.httpPort,
             enabled = config.httpEnabled,
             icon = Icons.Default.Http,
             onToggle = { enabled ->
                 scope.launch {
                     prefs.updateHttp(enabled)
-                    if (isRunning) OmniProxyService.start(context) // Hot reload
+                    if (isRunning) OmniProxyService.start(context)
                 }
             },
             onPortChange = { port ->
@@ -142,7 +135,6 @@ fun DashboardScreen(
             }
         )
 
-        // SOCKS5 Proxy Card
         ExpressiveProxyCard(
             title = "SOCKS5 代理",
             subtitle = "支持 TCP 传输与通用网络代理协议",
@@ -162,10 +154,9 @@ fun DashboardScreen(
             }
         )
 
-        // PAC Server Card
         ExpressiveProxyCard(
             title = "PAC 自动代理服务",
-            subtitle = "http://$recommendedHost:${config.pacPort}/proxy.pac",
+            subtitle = "http://" + recommendedHost + ":" + config.pacPort + "/proxy.pac",
             port = config.pacPort,
             enabled = config.pacEnabled,
             icon = Icons.Default.Language,
@@ -184,7 +175,6 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Traffic Stats Floating Card
         Card(
             shape = HeroCardShape,
             colors = CardDefaults.cardColors(
@@ -196,7 +186,7 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth().padding(20.dp)
             ) {
                 Text(
-                    text = "实时流量与连�?,
+                    text = "实时流量与连接",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -206,15 +196,14 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    MetricItem("活跃连接", "${stats.activeConnections} �?)
-                    MetricItem("已上�?, OmniProxyService.formatBytes(stats.bytesUploaded))
-                    MetricItem("已下�?, OmniProxyService.formatBytes(stats.bytesDownloaded))
+                    MetricItem("活跃连接", stats.activeConnections.toString() + " 个")
+                    MetricItem("已上传", OmniProxyService.formatBytes(stats.bytesUploaded))
+                    MetricItem("已下载", OmniProxyService.formatBytes(stats.bytesDownloaded))
                 }
             }
         }
     }
 
-    // QR Code Dialog
     qrCodeContent?.let { content ->
         QrCodeDialog(
             title = "扫描配置代理",

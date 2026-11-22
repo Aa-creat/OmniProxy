@@ -10,7 +10,7 @@ import io.github.aacreat.omniproxy.core.model.ProxyConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "omni_proxy_settings")
+private val Context.dataStore by preferencesDataStore(name = "omniproxy_settings")
 
 class PreferencesManager(private val context: Context) {
 

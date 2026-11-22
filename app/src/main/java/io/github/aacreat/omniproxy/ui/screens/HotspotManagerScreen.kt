@@ -54,7 +54,6 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var clients by remember { mutableStateOf<List<HotspotClient>>(emptyList()) }
-    var isRefreshing by remember { mutableStateOf(false) }
 
     val interfaces = remember { networkManager.getActiveInterfaces() }
     val hotspotInterface = interfaces.firstOrNull { it.isHotspot }
@@ -62,9 +61,7 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
 
     fun refreshClients() {
         scope.launch {
-            isRefreshing = true
             clients = networkManager.getHotspotClients()
-            isRefreshing = false
         }
     }
 
@@ -78,7 +75,6 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Hotspot Status Overview
         Card(
             shape = HeroCardShape,
             colors = CardDefaults.cardColors(
@@ -109,13 +105,14 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if (hotspotInterface != null) "热点已开�? else "热点未检测到活动",
+                                text = if (hotspotInterface != null) "热点已开启" else "热点未检测到活动",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
+                            val ip = hotspotInterface?.ipAddress ?: "待连接"
                             Text(
-                                text = "网关 IP: ${hotspotInterface?.ipAddress ?: "待连�?}",
+                                text = "网关 IP: $ip",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
@@ -144,7 +141,7 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                 if (isVpnActive) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "�?VPN 共享模式已就绪：连入此热点的设备设置代理后即可无缝翻墙或穿透内部专网！",
+                        text = "★ VPN 共享模式已就绪：连入此热点的设备设置代理后即可无缝翻墙或穿透内部专网！",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -155,7 +152,6 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Hotspot Clients Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,7 +165,7 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "已连接的客户�?(${clients.size})",
+                    text = "已连接的客户端 (" + clients.size + ")",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -245,7 +241,7 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "IP: ${client.ip}  �? MAC: ${client.mac}",
+                                        text = "IP: " + client.ip + "  •  MAC: " + client.mac,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -258,7 +254,7 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "已连�?,
+                                    text = "已连接",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = AccentOnline,
                                     fontWeight = FontWeight.Bold

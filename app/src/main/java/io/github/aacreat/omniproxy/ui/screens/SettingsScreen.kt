@@ -52,7 +52,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
             .padding(16.dp)
     ) {
         Text(
-            text = "安全与认证设�?,
+            text = "安全与认证设置",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -66,12 +66,12 @@ fun SettingsScreen(prefs: PreferencesManager) {
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "代理访问凭证 (可�?",
+                    text = "代理访问凭证 (可选)",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "若设置，客户端连�?HTTP �?SOCKS5 时需提供用户名与密码",
+                    text = "若设置，客户端连接 HTTP 或 SOCKS5 时需提供用户名与密码",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -80,7 +80,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
                 OutlinedTextField(
                     value = userText,
                     onValueChange = { userText = it },
-                    label = { Text("用户�?) },
+                    label = { Text("用户名") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -114,7 +114,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "系统与服务行�?,
+            text = "系统与服务行为",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -156,7 +156,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "关于 Every Proxy",
+            text = "关于 OmniProxy",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -170,7 +170,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "Every Proxy (MD3E Expressive Edition)",
+                    text = "OmniProxy (MD3E Expressive Edition)",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )

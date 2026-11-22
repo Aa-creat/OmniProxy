@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Http
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -173,7 +170,7 @@ fun ExpressiveProxyCard(
                 OutlinedTextField(
                     value = tempPortText,
                     onValueChange = { tempPortText = it },
-                    label = { Text("端口�?(1-65535)") },
+                    label = { Text("端口号 (1-65535)") },
                     singleLine = true
                 )
             },

@@ -64,7 +64,6 @@ class NetworkManager(private val context: Context) {
 
     fun getRecommendedHost(): String {
         val interfaces = getActiveInterfaces()
-        // Priority: 1. Hotspot AP (e.g. 192.168.43.1), 2. Wi-Fi (wlan0), 3. First non-VPN IPv4, 4. 0.0.0.0
         val hotspot = interfaces.firstOrNull { it.isHotspot }
         if (hotspot != null) return hotspot.ipAddress
 
@@ -92,7 +91,6 @@ class NetworkManager(private val context: Context) {
         try {
             BufferedReader(FileReader("/proc/net/arp")).use { reader ->
                 var line: String?
-                // Skip header: IP address HW type Flags HW address Mask Device
                 reader.readLine()
                 while (reader.readLine().also { line = it } != null) {
                     val parts = line!!.trim().split("\\s+".toRegex())
@@ -100,13 +98,12 @@ class NetworkManager(private val context: Context) {
                         val ip = parts[0]
                         val flags = parts[2]
                         val mac = parts[3]
-                        // 0x2 is normal connected flag
                         if (flags != "0x0" && mac != "00:00:00:00:00:00") {
                             clients.add(
                                 HotspotClient(
                                     ip = ip,
                                     mac = mac.uppercase(),
-                                    deviceName = "客户�?(${ip.substringAfterLast('.')})"
+                                    deviceName = "客户端 (${ip.substringAfterLast('.')})"
                                 )
                             )
                         }
