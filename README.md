@@ -1,7 +1,6 @@
 # OmniProxy (MD3E Expressive)
 
-[![Build and Pre-Release](https://github.com/Aa-creat/OmniProxy/actions/workflows/build-release.yml/badge.svg)](https://github.com/Aa-creat/OmniProxy/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release Build](https://github.com/Aa-creat/OmniProxy/actions/workflows/release.yml/badge.svg)](https://github.com/Aa-creat/OmniProxy/actions)
 
 **OmniProxy** 是一款基于 **Material Design 3 Expressive (MD3E)** 现代化设计语言构建的 Android 局域网/热点代理服务器与网关管理工具。
 
@@ -40,17 +39,17 @@
 - **业务架构**：Clean Architecture + MVI/MVVM + Kotlin Coroutines & Flow
 - **底层代理引擎**：Go 1.22+ (`c-shared` JNI 跨平台编译至 Android NDK)
 - **数据持久化**：Jetpack DataStore (Preferences)
-- **CI/CD**：GitHub Actions 自动跨平台编译 Go `.so`、构建 Release APK 并自动发布 Pre-Release
+- **CI/CD**：GitHub Actions 自动跨平台编译 Go `.so`、构建 Release APK 并发布 Pre-Release
 
 ---
 
 ## 🛠️ 构建与发布
 
-本项目已全面接入 **GitHub Actions CI/CD**：
-- 每次推送 Tag（例如 `v1.0.0`）或在 GitHub Actions 页面点击 **Run workflow**，即可全自动完成 NDK/Go 交叉编译、Gradle 打包，并在 **Releases** 页面发布最新的 Pre-Release APK。
+本项目通过 **GitHub Actions CI/CD** 进行全自动编译与打包：
+- 每次推送新版本 Tag（例如 `v1.0.0`）或在 Actions 控制台触发，自动完成 NDK/Go 交叉编译、APK 对齐与签名，并在 **Releases** 页面生成预发布安装包。
 
 ---
 
-## 📄 开源许可证
+## 🔒 声明
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目为个人所有，未经作者明确授权，保留所有权利 (All Rights Reserved)。
