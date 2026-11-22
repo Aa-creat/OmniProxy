@@ -1,20 +1,19 @@
-name: Build, Sign and Pre-Release
+name: Release
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     tags:
       - 'v*'
-  workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
-    name: Build Go Native & Sign Android APK
+    name: Build, Sign and Release APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code
@@ -22,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go 1.22
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
@@ -33,16 +32,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK & NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK & Build Tools
+      - name: Install Android NDK
         run: |
-          sdkmanager --install "ndk;26.1.10909125" "build-tools;35.0.0"
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" "build-tools;35.0.0"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
           echo "ANDROID_BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0" >> $GITHUB_ENV
 
-      - name: Build Go Native JNI Libraries (.so)
+      - name: Compile Go Native Libraries (.so)
         run: |
           chmod +x core-proxy-go/build-android.sh
           cd core-proxy-go
@@ -50,30 +46,27 @@ jobs:
           cd ..
           ls -R app/src/main/jniLibs
 
-      - name: Setup Gradle Wrapper
+      - name: Build Android Release APK
         run: |
           if [ ! -f gradlew ]; then
             gradle wrapper
           fi
           chmod +x gradlew
-
-      - name: Build Android Release APK
-        run: |
           ./gradlew assembleRelease --stacktrace
 
-      - name: Secure APK Signing (Dual-Mode: Secrets / CI Keystore)
+      - name: Sign APK (Production / CI Ephemeral Keystore)
         run: |
           mkdir -p release-artifacts
           RAW_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
           ALIGNED_APK="release-artifacts/OmniProxy-aligned.apk"
           SIGNED_APK="release-artifacts/OmniProxy-release.apk"
 
-          echo "Found compiled APK: $RAW_APK"
+          echo "Found raw APK: $RAW_APK"
 
           $ANDROID_BUILD_TOOLS/zipalign -v -p 4 "$RAW_APK" "$ALIGNED_APK"
 
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "Using Production Keystore from GitHub Secrets"
+            echo "Signing with Secrets Keystore"
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
             $ANDROID_BUILD_TOOLS/apksigner sign \
               --ks keystore.jks \
@@ -118,19 +111,23 @@ jobs:
           cat checksums-sha256.txt
           cd ..
 
-      - name: Create GitHub Pre-Release
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+      - name: Publish Pre-Release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           tag_name: ${{ github.ref_name }}
           name: OmniProxy ${{ github.ref_name }}
           body: |
-            ### OmniProxy Pre-Release
-            - Material Design 3 Expressive UI
-            - Go Native Proxy Core
-            - VPN Hotspot Sharing & Client Management
-            - Signed with v2/v3 signing scheme
+            ### 🚀 OmniProxy (MD3E Expressive) 预发布版本
+
+            本版本已由 GitHub Actions 自动化构建，并经过 zipalign 内存优化与 apksigner (v1/v2/v3) 严格签名校验。
+
+            #### ✨ 核心特性：
+            - **Material Design 3 Expressive (MD3E)**：全套弹簧物理动效、大圆角与药丸几何形变、Monet 动态配色；
+            - **Go 原生网络核心驱动 (`libomniproxy.so`)**：高并发 HTTP/HTTPS CONNECT 隧道与 SOCKS5 代理；
+            - **VPN 热点共享与穿透**：单设备开启 VPN + 热点，从设备连入自动走本机 VPN 路由出口；
+            - **热点设备管理**：基于网络邻居/ARP 实时查看连接到热点的从设备与 IP/MAC；
+            - **PAC 动态配置与一键二维码配网**。
           files: |
             release-artifacts/OmniProxy-release.apk
             release-artifacts/checksums-sha256.txt
