@@ -8,6 +8,11 @@ on:
       - main
       - master
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag'
+        required: false
+        default: 'v1.0.0-preview'
 
 permissions:
   contents: write
@@ -63,21 +68,20 @@ jobs:
           ./gradlew assembleRelease --stacktrace
 
       - name: Secure APK Signing (Dual-Mode: Secrets / CI Keystore)
-        id: sign_apk
         run: |
           mkdir -p release-artifacts
           RAW_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
           ALIGNED_APK="release-artifacts/OmniProxy-aligned.apk"
-          SIGNED_APK="release-artifacts/OmniProxy-v1.0.0-release.apk"
+          SIGNED_APK="release-artifacts/OmniProxy-release.apk"
 
           echo "Found compiled APK: $RAW_APK"
 
-          # 1. ZipAlign 4-byte boundary optimization
+          # 1. ZipAlign 4-byte boundary
           $ANDROID_BUILD_TOOLS/zipalign -v -p 4 "$RAW_APK" "$ALIGNED_APK"
 
           # 2. Secure Signing Scheme (v2 + v3)
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "--> Using Production Keystore from GitHub Secrets"
+            echo "Using Production Keystore from GitHub Secrets"
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
             $ANDROID_BUILD_TOOLS/apksigner sign \
               --ks keystore.jks \
@@ -91,7 +95,7 @@ jobs:
               "$ALIGNED_APK"
             rm -f keystore.jks
           else
-            echo "--> No Secret Keystore provided: Generating ephemeral CI Release Keystore"
+            echo "No Secret Keystore provided: Generating ephemeral CI Release Keystore"
             keytool -genkeypair -v \
               -keystore ci_release.jks \
               -alias omniproxy \
@@ -118,36 +122,38 @@ jobs:
           # 3. Verify Signature
           $ANDROID_BUILD_TOOLS/apksigner verify --verbose "$SIGNED_APK"
 
-          # 4. Generate SHA-256 Checksum for Supply Chain Integrity
+          # 4. Generate SHA-256 Checksum
           cd release-artifacts
-          sha256sum OmniProxy-v1.0.0-release.apk > checksums-sha256.txt
+          sha256sum OmniProxy-release.apk > checksums-sha256.txt
           cat checksums-sha256.txt
           cd ..
 
       - name: Create GitHub Pre-Release
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
-        with:
-          prerelease: true
-          tag_name: ${{ github.ref_name || 'v1.0.0-preview' }}
-          name: "OmniProxy ${{ github.ref_name || 'v1.0.0-preview' }}"
-          body: |
-            ### 🚀 OmniProxy (MD3E Expressive) 预发布版本
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="v1.0.0-preview"
+          fi
 
-            本版本由 GitHub Actions 安全构建并完成 APK v2/v3 签名校验。
+          gh release create "$TAG" \
+            --title "OmniProxy $TAG" \
+            --notes "### 🚀 OmniProxy (MD3E Expressive) 预发布版本
 
-            #### ✨ 核心特性：
-            - **Material Design 3 Expressive (MD3E)**：全套弹簧物理动效、大圆角与药丸几何形变、Monet 动态取色；
-            - **Go 原生网络核心驱动 (`libomniproxy.so`)**：高并发 HTTP/HTTPS CONNECT 隧道与 SOCKS5 代理；
-            - **VPN 热点共享与穿透**：单设备开启 VPN + 热点，从设备连入自动走本机 VPN 路由出口；
-            - **热点设备管理**：基于网络邻居/ARP 实时查看连接到热点的从设备与 IP/MAC；
-            - **PAC 动态配置与一键二维码配网**。
+          本版本由 GitHub Actions 安全构建并完成 APK v2/v3 签名校验。
 
-            #### 🔒 供应链安全与校验和：
-            发布产物已自动经过 `zipalign` 内存对齐与 `apksigner` (v1/v2/v3) 严格签名校验。
-            请核对 SHA-256 校验和确保文件完整性。
-          files: |
-            release-artifacts/OmniProxy-v1.0.0-release.apk
+          - **Material Design 3 Expressive (MD3E)**：弹簧物理动效、大圆角与药丸形变、Monet 动态配色；
+          - **Go 原生网络核心驱动 (`libomniproxy.so`)**：高并发 HTTP/HTTPS CONNECT 隧道与 SOCKS5 代理；
+          - **VPN 热点共享与穿透**：单设备开启 VPN + 热点，从设备连入自动走本机 VPN 路由出口；
+          - **热点设备管理**：基于网络邻居/ARP 实时查看连接到热点的从设备与 IP/MAC；
+          - **PAC 动态配置与一键二维码配网**。
+
+          已通过 zipalign 内存对齐与 apksigner 严格签名校验。" \
+            --prerelease \
+            release-artifacts/OmniProxy-release.apk \
             release-artifacts/checksums-sha256.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
