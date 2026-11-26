@@ -111,6 +111,11 @@ class WifiDirectManager(context: Context) {
             val targetBand = when (band) {
                 BAND_2GHZ -> WifiP2pConfig.GROUP_OWNER_BAND_2GHZ
                 BAND_5GHZ -> WifiP2pConfig.GROUP_OWNER_BAND_5GHZ
+                BAND_6GHZ -> if (Build.VERSION.SDK_INT >= 36) {
+                    WifiP2pConfig.GROUP_OWNER_BAND_6GHZ
+                } else {
+                    WifiP2pConfig.GROUP_OWNER_BAND_AUTO
+                }
                 else -> WifiP2pConfig.GROUP_OWNER_BAND_AUTO
             }
             try {
@@ -204,6 +209,7 @@ class WifiDirectManager(context: Context) {
         const val BAND_AUTO = 0
         const val BAND_2GHZ = 1
         const val BAND_5GHZ = 2
+        const val BAND_6GHZ = 3
 
         private val DIRECT_PREFIX_REGEX = Regex("^DIRECT-[A-Za-z0-9]{2}.*")
 
@@ -218,6 +224,7 @@ class WifiDirectManager(context: Context) {
 
         fun formatFrequency(freqMhz: Int): String {
             return when {
+                freqMhz >= 5925 -> "6 GHz (${freqMhz} MHz)"
                 freqMhz >= 5000 -> "5 GHz (${freqMhz} MHz)"
                 freqMhz >= 2400 -> "2.4 GHz (${freqMhz} MHz)"
                 else -> "自动"

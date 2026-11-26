@@ -1,6 +1,7 @@
 package io.github.aacreat.omniproxy.ui.screens
 
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -286,6 +287,7 @@ fun HotspotManagerScreen(
                             when (config.wifiDirectBand) {
                                 WifiDirectManager.BAND_2GHZ -> "2.4 GHz"
                                 WifiDirectManager.BAND_5GHZ -> "5 GHz"
+                                WifiDirectManager.BAND_6GHZ -> "6 GHz"
                                 else -> "自动"
                             }
                         }
@@ -372,11 +374,15 @@ fun HotspotManagerScreen(
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf(
-                                    WifiDirectManager.BAND_AUTO to "自动",
-                                    WifiDirectManager.BAND_2GHZ to "2.4 GHz",
-                                    WifiDirectManager.BAND_5GHZ to "5 GHz"
-                                ).forEach { (bandValue, label) ->
+                                val bandOptions = buildList {
+                                    add(WifiDirectManager.BAND_AUTO to "自动")
+                                    add(WifiDirectManager.BAND_2GHZ to "2.4 GHz")
+                                    add(WifiDirectManager.BAND_5GHZ to "5 GHz")
+                                    if (Build.VERSION.SDK_INT >= 36) {
+                                        add(WifiDirectManager.BAND_6GHZ to "6 GHz")
+                                    }
+                                }
+                                bandOptions.forEach { (bandValue, label) ->
                                     FilterChip(
                                         selected = selectedBand == bandValue,
                                         onClick = {

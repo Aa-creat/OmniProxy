@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "io.github.aacreat.omniproxy"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "io.github.aacreat.omniproxy"
