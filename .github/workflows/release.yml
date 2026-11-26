@@ -36,6 +36,11 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
           echo "ANDROID_BUILD_TOOLS=$ANDROID_HOME/build-tools/35.0.0" >> $GITHUB_ENV
 
+      - name: Run Go Unit Tests
+        run: |
+          cd core-proxy-go
+          go test -v ./...
+
       - name: Compile Go Native Libraries (.so)
         run: |
           chmod +x core-proxy-go/build-android.sh
@@ -50,9 +55,9 @@ jobs:
             gradle wrapper
           fi
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew testDebugUnitTest assembleRelease --stacktrace
 
-      - name: Sign APK (Production / CI Ephemeral Keystore)
+      - name: Sign APK (Production Keystore)
         run: |
           mkdir -p release-artifacts
           RAW_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
@@ -61,46 +66,26 @@ jobs:
 
           echo "Found raw APK: $RAW_APK"
 
+          if [ -z "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ] || [ -z "${{ secrets.KEY_ALIAS }}" ] || [ -z "${{ secrets.KEYSTORE_PASSWORD }}" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "::error::Missing required signing secrets (RELEASE_KEYSTORE_BASE64, KEY_ALIAS, KEYSTORE_PASSWORD, KEY_PASSWORD). Refusing to generate ephemeral keystore."
+            exit 1
+          fi
+
           $ANDROID_BUILD_TOOLS/zipalign -v -p 4 "$RAW_APK" "$ALIGNED_APK"
 
-          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "Signing with Secrets Keystore"
-            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
-            $ANDROID_BUILD_TOOLS/apksigner sign \
-              --ks keystore.jks \
-              --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
-              --ks-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
-              --key-pass pass:"${{ secrets.KEY_PASSWORD }}" \
-              --v1-signing-enabled true \
-              --v2-signing-enabled true \
-              --v3-signing-enabled true \
-              --out "$SIGNED_APK" \
-              "$ALIGNED_APK"
-            rm -f keystore.jks
-          else
-            echo "Generating CI Release Keystore"
-            keytool -genkeypair -v \
-              -keystore ci_release.jks \
-              -alias omniproxy \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "omniproxypass" \
-              -keypass "omniproxypass" \
-              -dname "CN=OmniProxy, OU=Release, O=Aa-creat, C=US"
-
-            $ANDROID_BUILD_TOOLS/apksigner sign \
-              --ks ci_release.jks \
-              --ks-key-alias omniproxy \
-              --ks-pass pass:"omniproxypass" \
-              --key-pass pass:"omniproxypass" \
-              --v1-signing-enabled true \
-              --v2-signing-enabled true \
-              --v3-signing-enabled true \
-              --out "$SIGNED_APK" \
-              "$ALIGNED_APK"
-            rm -f ci_release.jks
-          fi
+          echo "Signing with Secrets Keystore"
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          $ANDROID_BUILD_TOOLS/apksigner sign \
+            --ks keystore.jks \
+            --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+            --ks-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
+            --key-pass pass:"${{ secrets.KEY_PASSWORD }}" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "$SIGNED_APK" \
+            "$ALIGNED_APK"
+          rm -f keystore.jks
 
           $ANDROID_BUILD_TOOLS/apksigner verify --verbose "$SIGNED_APK"
 

@@ -33,32 +33,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.aacreat.omniproxy.core.data.PreferencesManager
-import io.github.aacreat.omniproxy.core.model.ProxyConfig
-import io.github.aacreat.omniproxy.core.network.NetworkManager
-import io.github.aacreat.omniproxy.core.network.WifiDirectManager
 import io.github.aacreat.omniproxy.service.OmniProxyService
+import io.github.aacreat.omniproxy.ui.MainViewModel
 import io.github.aacreat.omniproxy.ui.components.ExpressiveProxyCard
 import io.github.aacreat.omniproxy.ui.components.NetworkBanner
 import io.github.aacreat.omniproxy.ui.components.QrCodeDialog
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
-import kotlinx.coroutines.launch
 
 @Composable
-fun DashboardScreen(
-    prefs: PreferencesManager,
-    networkManager: NetworkManager,
-    wifiDirectManager: WifiDirectManager
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val config by prefs.configFlow.collectAsState(initial = ProxyConfig())
-    val isRunning by OmniProxyService.isRunningState.collectAsState()
-    val stats by OmniProxyService.statsState.collectAsState()
-    val wifiDirectState by wifiDirectManager.state.collectAsState()
+fun DashboardScreen(viewModel: MainViewModel) {
+    val config by viewModel.config.collectAsState()
+    val isRunning by viewModel.isRunning.collectAsState()
+    val stats by viewModel.stats.collectAsState()
+    val wifiDirectState by viewModel.wifiDirectState.collectAsState()
 
     var qrCodeContent by remember { mutableStateOf<String?>(null) }
 
@@ -66,13 +55,13 @@ fun DashboardScreen(
         if (wifiDirectState.isActive && wifiDirectState.gatewayIp.isNotEmpty()) {
             wifiDirectState.gatewayIp
         } else {
-            networkManager.getRecommendedHost()
+            viewModel.getRecommendedHost()
         }
     }
     val isHotspotActive = remember(wifiDirectState.isActive, isRunning) {
-        wifiDirectState.isActive || networkManager.getActiveInterfaces().any { it.isHotspot }
+        wifiDirectState.isActive || viewModel.getActiveInterfaces().any { it.isHotspot }
     }
-    val isVpnActive = remember(isRunning) { networkManager.isVpnConnected() }
+    val isVpnActive = remember(isRunning) { viewModel.isVpnConnected() }
 
     val scrollState = rememberScrollState()
 
@@ -94,16 +83,7 @@ fun DashboardScreen(
 
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
             Button(
-                onClick = {
-                    if (isRunning) {
-                        OmniProxyService.stop(context)
-                    } else {
-                        if (!config.httpEnabled && !config.socksEnabled && !config.pacEnabled) {
-                            scope.launch { prefs.updateHttp(true) }
-                        }
-                        OmniProxyService.start(context)
-                    }
-                },
+                onClick = { viewModel.toggleAllProxies() },
                 shape = HeroCardShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -131,17 +111,8 @@ fun DashboardScreen(
             port = config.httpPort,
             enabled = config.httpEnabled,
             icon = Icons.Default.Http,
-            onToggle = { enabled ->
-                scope.launch {
-                    prefs.updateHttp(enabled)
-                    if (isRunning) OmniProxyService.start(context)
-                }
-            },
-            onPortChange = { port ->
-                scope.launch {
-                    prefs.updateHttp(config.httpEnabled, port)
-                }
-            }
+            onToggle = { enabled -> viewModel.setHttpEnabled(enabled) },
+            onPortChange = { port -> viewModel.updateHttpPort(port) }
         )
 
         ExpressiveProxyCard(
@@ -150,17 +121,8 @@ fun DashboardScreen(
             port = config.socksPort,
             enabled = config.socksEnabled,
             icon = Icons.Default.Router,
-            onToggle = { enabled ->
-                scope.launch {
-                    prefs.updateSocks(enabled)
-                    if (isRunning) OmniProxyService.start(context)
-                }
-            },
-            onPortChange = { port ->
-                scope.launch {
-                    prefs.updateSocks(config.socksEnabled, port)
-                }
-            }
+            onToggle = { enabled -> viewModel.setSocksEnabled(enabled) },
+            onPortChange = { port -> viewModel.updateSocksPort(port) }
         )
 
         ExpressiveProxyCard(
@@ -169,17 +131,8 @@ fun DashboardScreen(
             port = config.pacPort,
             enabled = config.pacEnabled,
             icon = Icons.Default.Language,
-            onToggle = { enabled ->
-                scope.launch {
-                    prefs.updatePac(enabled)
-                    if (isRunning) OmniProxyService.start(context)
-                }
-            },
-            onPortChange = { port ->
-                scope.launch {
-                    prefs.updatePac(config.pacEnabled, port)
-                }
-            }
+            onToggle = { enabled -> viewModel.setPacEnabled(enabled) },
+            onPortChange = { port -> viewModel.updatePacPort(port) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))

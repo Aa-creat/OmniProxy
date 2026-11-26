@@ -29,15 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import io.github.aacreat.omniproxy.core.data.PreferencesManager
-import io.github.aacreat.omniproxy.core.model.ProxyConfig
+import io.github.aacreat.omniproxy.ui.MainViewModel
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
-import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(prefs: PreferencesManager) {
-    val scope = rememberCoroutineScope()
-    val config by prefs.configFlow.collectAsState(initial = ProxyConfig())
+fun SettingsScreen(viewModel: MainViewModel) {
+    val config by viewModel.config.collectAsState()
 
     var userText by remember(config.username) { mutableStateOf(config.username) }
     var passText by remember(config.password) { mutableStateOf(config.password) }
@@ -75,6 +72,14 @@ fun SettingsScreen(prefs: PreferencesManager) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (config.username.isEmpty() && config.password.isEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "安全提示：当前未设置代理认证，同一局域网/热点下的设备均可直接使用代理（本机与内网地址默认受 SSRF 策略拦截）。建议设置用户名和密码。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
@@ -99,11 +104,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = {
-                        scope.launch {
-                            prefs.updateCredentials(userText.trim(), passText.trim())
-                        }
-                    },
+                    onClick = { viewModel.saveCredentials(userText, passText) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("保存凭据")
@@ -145,9 +146,7 @@ fun SettingsScreen(prefs: PreferencesManager) {
                     }
                     Switch(
                         checked = config.autoStartOnBoot,
-                        onCheckedChange = { checked ->
-                            scope.launch { prefs.updateAutoStart(checked) }
-                        }
+                        onCheckedChange = { checked -> viewModel.setAutoStart(checked) }
                     )
                 }
             }

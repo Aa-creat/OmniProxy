@@ -22,7 +22,7 @@ object NativeProxy {
     fun isNativeReady(): Boolean = isLoaded
 
     fun startHttp(host: String, port: Int, user: String, pass: String): Boolean {
-        if (!isLoaded) return true
+        if (!isLoaded) return false
         return startHttpProxy(host, port, user, pass)
     }
 
@@ -32,7 +32,7 @@ object NativeProxy {
     }
 
     fun startSocks5(host: String, port: Int, user: String, pass: String): Boolean {
-        if (!isLoaded) return true
+        if (!isLoaded) return false
         return startSocks5Proxy(host, port, user, pass)
     }
 
@@ -42,7 +42,7 @@ object NativeProxy {
     }
 
     fun startPac(host: String, port: Int, proxyHost: String, proxyPort: Int, socksPort: Int): Boolean {
-        if (!isLoaded) return true
+        if (!isLoaded) return false
         return startPacServer(host, port, proxyHost, proxyPort, socksPort)
     }
 

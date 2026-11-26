@@ -35,10 +35,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import io.github.aacreat.omniproxy.core.data.PreferencesManager
-import io.github.aacreat.omniproxy.core.network.NetworkManager
-import io.github.aacreat.omniproxy.core.network.WifiDirectManager
-import io.github.aacreat.omniproxy.service.OmniProxyService
+import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.aacreat.omniproxy.ui.MainViewModel
 import io.github.aacreat.omniproxy.ui.screens.DashboardScreen
 import io.github.aacreat.omniproxy.ui.screens.HotspotManagerScreen
 import io.github.aacreat.omniproxy.ui.screens.SettingsScreen
@@ -65,17 +63,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val prefs = PreferencesManager(this)
-        val networkManager = NetworkManager(this)
-        val wifiDirectManager = WifiDirectManager(this)
-
         setContent {
             OmniProxyTheme {
-                MainScreen(
-                    prefs = prefs,
-                    networkManager = networkManager,
-                    wifiDirectManager = wifiDirectManager
-                )
+                val mainViewModel: MainViewModel = viewModel()
+                MainScreen(viewModel = mainViewModel)
             }
         }
     }
@@ -89,15 +80,21 @@ enum class NavItem(val label: String, val icon: ImageVector) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
-    prefs: PreferencesManager,
-    networkManager: NetworkManager,
-    wifiDirectManager: WifiDirectManager
-) {
+fun MainScreen(viewModel: MainViewModel) {
     var selectedIndex by remember { mutableIntStateOf(0) }
-    val isRunning by OmniProxyService.isRunningState.collectAsState()
+    val isRunning by viewModel.isRunning.collectAsState()
+    val serviceError by viewModel.serviceError.collectAsState()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+
+    androidx.compose.runtime.LaunchedEffect(serviceError) {
+        serviceError?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearServiceError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -142,17 +139,9 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             when (selectedIndex) {
-                0 -> DashboardScreen(
-                    prefs = prefs,
-                    networkManager = networkManager,
-                    wifiDirectManager = wifiDirectManager
-                )
-                1 -> HotspotManagerScreen(
-                    prefs = prefs,
-                    networkManager = networkManager,
-                    wifiDirectManager = wifiDirectManager
-                )
-                2 -> SettingsScreen(prefs = prefs)
+                0 -> DashboardScreen(viewModel = viewModel)
+                1 -> HotspotManagerScreen(viewModel = viewModel)
+                2 -> SettingsScreen(viewModel = viewModel)
             }
         }
     }

@@ -60,30 +60,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.aacreat.omniproxy.core.data.PreferencesManager
 import io.github.aacreat.omniproxy.core.model.HotspotClient
-import io.github.aacreat.omniproxy.core.model.ProxyConfig
-import io.github.aacreat.omniproxy.core.network.NetworkManager
 import io.github.aacreat.omniproxy.core.network.WifiDirectManager
+import io.github.aacreat.omniproxy.ui.MainViewModel
 import io.github.aacreat.omniproxy.ui.components.QrCodeDialog
 import io.github.aacreat.omniproxy.ui.theme.AccentOnline
 import io.github.aacreat.omniproxy.ui.theme.CardInnerShape
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
 import io.github.aacreat.omniproxy.ui.theme.PillShape
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun HotspotManagerScreen(
-    prefs: PreferencesManager,
-    networkManager: NetworkManager,
-    wifiDirectManager: WifiDirectManager
-) {
+fun HotspotManagerScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var clients by remember { mutableStateOf<List<HotspotClient>>(emptyList()) }
-    val config by prefs.configFlow.collectAsState(initial = ProxyConfig())
-    val wifiDirectState by wifiDirectManager.state.collectAsState()
+    val clients by viewModel.hotspotClients.collectAsState()
+    val config by viewModel.config.collectAsState()
+    val wifiDirectState by viewModel.wifiDirectState.collectAsState()
 
     var showDirectConfig by remember { mutableStateOf(false) }
     var showWifiQrDialog by remember { mutableStateOf(false) }
@@ -96,23 +88,16 @@ fun HotspotManagerScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            wifiDirectManager.startGroup(
-                config.wifiDirectSsid,
-                config.wifiDirectPassphrase,
-                config.wifiDirectBand
-            )
+            viewModel.startWifiDirectGroup()
         }
     }
 
-    val interfaces = remember(wifiDirectState.isActive) { networkManager.getActiveInterfaces() }
+    val interfaces = remember(wifiDirectState.isActive) { viewModel.getActiveInterfaces() }
     val hotspotInterface = interfaces.firstOrNull { it.isHotspot }
-    val isVpnActive = remember { networkManager.isVpnConnected() }
+    val isVpnActive = remember { viewModel.isVpnConnected() }
 
     fun refreshClients() {
-        wifiDirectManager.refreshGroupInfo()
-        scope.launch {
-            clients = networkManager.getHotspotClients()
-        }
+        viewModel.refreshHotspotState()
     }
 
     LaunchedEffect(Unit) {
@@ -266,17 +251,13 @@ fun HotspotManagerScreen(
                             enabled = wifiDirectState.isSupported && !wifiDirectState.isBusy,
                             onCheckedChange = { enabled ->
                                 if (enabled) {
-                                    if (wifiDirectManager.hasRequiredPermission()) {
-                                        wifiDirectManager.startGroup(
-                                            config.wifiDirectSsid,
-                                            config.wifiDirectPassphrase,
-                                            config.wifiDirectBand
-                                        )
+                                    if (viewModel.hasWifiDirectPermission()) {
+                                        viewModel.startWifiDirectGroup()
                                     } else {
-                                        permissionLauncher.launch(wifiDirectManager.requiredPermission())
+                                        permissionLauncher.launch(viewModel.requiredWifiDirectPermission())
                                     }
                                 } else {
-                                    wifiDirectManager.stopGroup()
+                                    viewModel.stopWifiDirectGroup()
                                 }
                             }
                         )
@@ -443,14 +424,12 @@ fun HotspotManagerScreen(
                                     }
                                     val normalizedSsid = WifiDirectManager.normalizeDirectSsid(directSsidText)
                                     directSsidText = normalizedSsid
-                                    scope.launch {
-                                        prefs.updateWifiDirectConfig(normalizedSsid, trimmedPass, selectedBand)
-                                        if (wifiDirectState.isActive && wifiDirectManager.hasRequiredPermission()) {
-                                            wifiDirectManager.restartGroup(normalizedSsid, trimmedPass, selectedBand)
-                                            configHint = "已保存并正在重启直连热点"
-                                        } else {
-                                            configHint = "配置已保存，开启直连热点后生效"
-                                        }
+                                    val wasActive = wifiDirectState.isActive && viewModel.hasWifiDirectPermission()
+                                    viewModel.saveAndMaybeRestartWifiDirect(normalizedSsid, trimmedPass, selectedBand)
+                                    configHint = if (wasActive) {
+                                        "已保存并正在重启直连热点"
+                                    } else {
+                                        "配置已保存，开启直连热点后生效"
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()

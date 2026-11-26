@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type PacServer struct {
@@ -45,7 +46,14 @@ func (s *PacServer) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handlePac)
 
-	s.httpServer = &http.Server{Handler: mux}
+	s.httpServer = &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		MaxHeaderBytes:    1 << 16,
+	}
 
 	go func() {
 		_ = s.httpServer.Serve(ln)

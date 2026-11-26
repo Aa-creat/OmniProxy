@@ -12,7 +12,7 @@ data class ProxyConfig(
     val password: String = "",
     val autoStartOnBoot: Boolean = false,
     val wifiDirectSsid: String = "DIRECT-OP-OmniProxy",
-    val wifiDirectPassphrase: String = "12345678",
+    val wifiDirectPassphrase: String = "",
     val wifiDirectBand: Int = 0
 )
 

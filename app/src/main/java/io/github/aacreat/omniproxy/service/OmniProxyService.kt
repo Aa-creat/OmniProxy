@@ -57,26 +57,62 @@ class OmniProxyService : Service() {
             val config = prefs.configFlow.first()
             val host = if (config.bindAddress == "0.0.0.0") "0.0.0.0" else config.bindAddress
 
+            if (!NativeProxy.isNativeReady()) {
+                _errorState.value = "底层代理引擎 (libomniproxy.so) 未加载，无法启动服务"
+                stopProxyService()
+                return@launch
+            }
+
+            val failures = mutableListOf<String>()
+            var anyStarted = false
+
             if (config.httpEnabled) {
-                NativeProxy.startHttp(host, config.httpPort, config.username, config.password)
+                if (NativeProxy.startHttp(host, config.httpPort, config.username, config.password)) {
+                    anyStarted = true
+                } else {
+                    failures.add("HTTP(${config.httpPort})")
+                }
             } else {
                 NativeProxy.stopHttp()
             }
 
             if (config.socksEnabled) {
-                NativeProxy.startSocks5(host, config.socksPort, config.username, config.password)
+                if (NativeProxy.startSocks5(host, config.socksPort, config.username, config.password)) {
+                    anyStarted = true
+                } else {
+                    failures.add("SOCKS5(${config.socksPort})")
+                }
             } else {
                 NativeProxy.stopSocks5()
             }
 
             if (config.pacEnabled) {
                 val recommendHost = networkManager.getRecommendedHost()
-                NativeProxy.startPac(host, config.pacPort, recommendHost, config.httpPort, config.socksPort)
+                if (NativeProxy.startPac(host, config.pacPort, recommendHost, config.httpPort, config.socksPort)) {
+                    anyStarted = true
+                } else {
+                    failures.add("PAC(${config.pacPort})")
+                }
             } else {
                 NativeProxy.stopPac()
             }
 
-            _isRunningState.value = config.httpEnabled || config.socksEnabled || config.pacEnabled
+            if (!anyStarted) {
+                _errorState.value = if (failures.isNotEmpty()) {
+                    "代理端口绑定失败: ${failures.joinToString(", ")}"
+                } else {
+                    "未启用任何代理服务"
+                }
+                stopProxyService()
+                return@launch
+            }
+
+            _errorState.value = if (failures.isNotEmpty()) {
+                "部分代理启动失败: ${failures.joinToString(", ")}"
+            } else {
+                null
+            }
+            _isRunningState.value = true
 
             startStatsPolling()
         }
@@ -172,6 +208,13 @@ class OmniProxyService : Service() {
 
         private val _statsState = MutableStateFlow(ProxyStats())
         val statsState: StateFlow<ProxyStats> = _statsState.asStateFlow()
+
+        private val _errorState = MutableStateFlow<String?>(null)
+        val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
+        fun clearError() {
+            _errorState.value = null
+        }
 
         fun formatBytes(bytes: Long): String {
             if (bytes < 1024) return "$bytes B"

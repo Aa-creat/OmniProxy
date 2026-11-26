@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -9,6 +10,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
+)
+
+const (
+	socksHandshakeTimeout = 15 * time.Second
+	socksDialTimeout      = 10 * time.Second
 )
 
 type Socks5Server struct {
@@ -44,15 +50,17 @@ func (s *Socks5Server) Start() error {
 	s.running = true
 
 	go func() {
+		var tempDelay time.Duration
 		for {
-			conn, err := ln.Accept()
-			if err != nil {
+			conn, keepGoing, err := acceptWithBackoff(ln, func() bool {
 				s.mu.Lock()
-				isRunning := s.running
-				s.mu.Unlock()
-				if !isRunning {
-					return
-				}
+				defer s.mu.Unlock()
+				return s.running
+			}, &tempDelay)
+			if !keepGoing {
+				return
+			}
+			if err != nil {
 				continue
 			}
 			go s.handleConnection(conn)
@@ -79,6 +87,8 @@ func (s *Socks5Server) handleConnection(conn net.Conn) {
 	defer DecActive()
 	defer conn.Close()
 
+	_ = conn.SetReadDeadline(time.Now().Add(socksHandshakeTimeout))
+
 	if err := s.auth(conn); err != nil {
 		return
 	}
@@ -88,10 +98,17 @@ func (s *Socks5Server) handleConnection(conn net.Conn) {
 		return
 	}
 
-	targetConn, err := net.DialTimeout("tcp", targetAddr, 10*time.Second)
+	_ = conn.SetReadDeadline(time.Time{})
+
+	targetConn, err := dialSafeTarget(context.Background(), targetAddr, socksDialTimeout)
 	if err != nil {
-		// General SOCKS server failure
-		_, _ = conn.Write([]byte{0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
+		if isBlockedError(err) {
+			// Connection not allowed by ruleset (0x02)
+			_, _ = conn.Write([]byte{0x05, 0x02, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
+		} else {
+			// General SOCKS server failure (0x01)
+			_, _ = conn.Write([]byte{0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
+		}
 		return
 	}
 	defer targetConn.Close()
@@ -138,7 +155,7 @@ func (s *Socks5Server) auth(conn net.Conn) error {
 		return err
 	}
 
-	hasAuth := s.username != "" && s.password != ""
+	hasAuth := s.username != "" || s.password != ""
 	if hasAuth {
 		// Requires Username/Password (0x02)
 		if _, err := conn.Write([]byte{0x05, 0x02}); err != nil {
@@ -157,6 +174,10 @@ func (s *Socks5Server) verifyUserPass(conn net.Conn) error {
 	if _, err := io.ReadFull(conn, ver); err != nil {
 		return err
 	}
+	if ver[0] != 0x01 {
+		_, _ = conn.Write([]byte{0x01, 0x01})
+		return errors.New("unsupported auth subnegotiation version")
+	}
 	ulen := make([]byte, 1)
 	if _, err := io.ReadFull(conn, ulen); err != nil {
 		return err
@@ -174,7 +195,7 @@ func (s *Socks5Server) verifyUserPass(conn net.Conn) error {
 		return err
 	}
 
-	if string(user) == s.username && string(pass) == s.password {
+	if constantTimeEqual(string(user), s.username) && constantTimeEqual(string(pass), s.password) {
 		_, err := conn.Write([]byte{0x01, 0x00}) // Success
 		return err
 	}

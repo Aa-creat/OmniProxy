@@ -30,7 +30,15 @@ class PreferencesManager(private val context: Context) {
         val WIFI_DIRECT_BAND = intPreferencesKey("wifi_direct_band")
     }
 
+    private val defaultPassphrase: String by lazy { CryptoHelper.generateRandomPassphrase() }
+
     val configFlow: Flow<ProxyConfig> = context.dataStore.data.map { pref ->
+        val storedPassphrase = pref[Keys.WIFI_DIRECT_PASSPHRASE]
+        val passphrase = if (storedPassphrase.isNullOrEmpty()) {
+            defaultPassphrase
+        } else {
+            CryptoHelper.decrypt(storedPassphrase).ifEmpty { defaultPassphrase }
+        }
         ProxyConfig(
             httpEnabled = pref[Keys.HTTP_ENABLED] ?: false,
             httpPort = pref[Keys.HTTP_PORT] ?: 8080,
@@ -39,11 +47,11 @@ class PreferencesManager(private val context: Context) {
             pacEnabled = pref[Keys.PAC_ENABLED] ?: false,
             pacPort = pref[Keys.PAC_PORT] ?: 8088,
             bindAddress = pref[Keys.BIND_ADDRESS] ?: "0.0.0.0",
-            username = pref[Keys.USERNAME] ?: "",
-            password = pref[Keys.PASSWORD] ?: "",
+            username = CryptoHelper.decrypt(pref[Keys.USERNAME] ?: ""),
+            password = CryptoHelper.decrypt(pref[Keys.PASSWORD] ?: ""),
             autoStartOnBoot = pref[Keys.AUTO_START_ON_BOOT] ?: false,
             wifiDirectSsid = pref[Keys.WIFI_DIRECT_SSID] ?: "DIRECT-OP-OmniProxy",
-            wifiDirectPassphrase = pref[Keys.WIFI_DIRECT_PASSPHRASE] ?: "12345678",
+            wifiDirectPassphrase = passphrase,
             wifiDirectBand = pref[Keys.WIFI_DIRECT_BAND] ?: 0
         )
     }
@@ -71,8 +79,8 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun updateCredentials(username: String, pass: String) {
         context.dataStore.edit { pref ->
-            pref[Keys.USERNAME] = username
-            pref[Keys.PASSWORD] = pass
+            pref[Keys.USERNAME] = CryptoHelper.encrypt(username)
+            pref[Keys.PASSWORD] = CryptoHelper.encrypt(pass)
         }
     }
 
@@ -91,7 +99,7 @@ class PreferencesManager(private val context: Context) {
     suspend fun updateWifiDirectConfig(ssid: String, passphrase: String, band: Int) {
         context.dataStore.edit { pref ->
             pref[Keys.WIFI_DIRECT_SSID] = ssid
-            pref[Keys.WIFI_DIRECT_PASSPHRASE] = passphrase
+            pref[Keys.WIFI_DIRECT_PASSPHRASE] = CryptoHelper.encrypt(passphrase)
             pref[Keys.WIFI_DIRECT_BAND] = band
         }
     }

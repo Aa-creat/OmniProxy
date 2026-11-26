@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -10,6 +11,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	httpHandshakeTimeout = 15 * time.Second
+	httpDialTimeout      = 10 * time.Second
 )
 
 type HttpProxyServer struct {
@@ -45,15 +51,17 @@ func (s *HttpProxyServer) Start() error {
 	s.running = true
 
 	go func() {
+		var tempDelay time.Duration
 		for {
-			conn, err := ln.Accept()
-			if err != nil {
+			conn, keepGoing, err := acceptWithBackoff(ln, func() bool {
 				s.mu.Lock()
-				isRunning := s.running
-				s.mu.Unlock()
-				if !isRunning {
-					return
-				}
+				defer s.mu.Unlock()
+				return s.running
+			}, &tempDelay)
+			if !keepGoing {
+				return
+			}
+			if err != nil {
 				continue
 			}
 			go s.handleConnection(conn)
@@ -80,18 +88,20 @@ func (s *HttpProxyServer) handleConnection(clientConn net.Conn) {
 	defer DecActive()
 	defer clientConn.Close()
 
+	_ = clientConn.SetReadDeadline(time.Now().Add(httpHandshakeTimeout))
 	reader := bufio.NewReader(clientConn)
 	req, err := http.ReadRequest(reader)
 	if err != nil {
 		return
 	}
+	_ = clientConn.SetReadDeadline(time.Time{})
 
-	// Basic Authentication check
-	if s.username != "" && s.password != "" {
+	// Basic Authentication check whenever either username or password is configured
+	if s.username != "" || s.password != "" {
 		auth := req.Header.Get("Proxy-Authorization")
 		if !s.checkAuth(auth) {
-			resp := "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"EveryProxy\"\r\n\r\n"
-			clientConn.Write([]byte(resp))
+			resp := "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"OmniProxy\"\r\n\r\n"
+			_, _ = clientConn.Write([]byte(resp))
 			return
 		}
 	}
@@ -112,32 +122,49 @@ func (s *HttpProxyServer) checkAuth(authHeader string) bool {
 		return false
 	}
 	pair := strings.SplitN(string(payload), ":", 2)
-	return len(pair) == 2 && pair[0] == s.username && pair[1] == s.password
+	return len(pair) == 2 && constantTimeEqual(pair[0], s.username) && constantTimeEqual(pair[1], s.password)
 }
 
 func (s *HttpProxyServer) handleConnect(clientConn net.Conn, req *http.Request) {
-	targetConn, err := net.DialTimeout("tcp", req.Host, 10*time.Second)
+	targetConn, err := dialSafeTarget(context.Background(), req.Host, httpDialTimeout)
 	if err != nil {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		if isBlockedError(err) {
+			_, _ = clientConn.Write([]byte("HTTP/1.1 403 Forbidden\r\n\r\n"))
+		} else {
+			_, _ = clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		}
 		return
 	}
 	defer targetConn.Close()
 
 	// 200 Connection Established
-	clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+	if _, err := clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n")); err != nil {
+		return
+	}
 
 	s.relay(clientConn, targetConn)
 }
 
 func (s *HttpProxyServer) handleHttp(clientConn net.Conn, req *http.Request) {
 	targetHost := req.Host
+	if targetHost == "" && req.URL != nil {
+		targetHost = req.URL.Host
+	}
+	if targetHost == "" {
+		_, _ = clientConn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
+		return
+	}
 	if !strings.Contains(targetHost, ":") {
 		targetHost += ":80"
 	}
 
-	targetConn, err := net.DialTimeout("tcp", targetHost, 10*time.Second)
+	targetConn, err := dialSafeTarget(context.Background(), targetHost, httpDialTimeout)
 	if err != nil {
-		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		if isBlockedError(err) {
+			_, _ = clientConn.Write([]byte("HTTP/1.1 403 Forbidden\r\n\r\n"))
+		} else {
+			_, _ = clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		}
 		return
 	}
 	defer targetConn.Close()
