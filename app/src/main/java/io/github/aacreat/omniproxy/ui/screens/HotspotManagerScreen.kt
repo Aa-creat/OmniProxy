@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Tune
@@ -64,6 +65,7 @@ import io.github.aacreat.omniproxy.core.model.HotspotClient
 import io.github.aacreat.omniproxy.core.model.ProxyConfig
 import io.github.aacreat.omniproxy.core.network.NetworkManager
 import io.github.aacreat.omniproxy.core.network.WifiDirectManager
+import io.github.aacreat.omniproxy.ui.components.QrCodeDialog
 import io.github.aacreat.omniproxy.ui.theme.AccentOnline
 import io.github.aacreat.omniproxy.ui.theme.CardInnerShape
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
@@ -84,6 +86,7 @@ fun HotspotManagerScreen(
     val wifiDirectState by wifiDirectManager.state.collectAsState()
 
     var showDirectConfig by remember { mutableStateOf(false) }
+    var showWifiQrDialog by remember { mutableStateOf(false) }
     var directSsidText by remember(config.wifiDirectSsid) { mutableStateOf(config.wifiDirectSsid) }
     var directPassText by remember(config.wifiDirectPassphrase) { mutableStateOf(config.wifiDirectPassphrase) }
     var selectedBand by remember(config.wifiDirectBand) { mutableIntStateOf(config.wifiDirectBand) }
@@ -316,22 +319,42 @@ fun HotspotManagerScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = { showDirectConfig = !showDirectConfig }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("修改名称、密码与频段")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = if (showDirectConfig) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        TextButton(
+                            onClick = { showDirectConfig = !showDirectConfig }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("修改名称、密码与频段")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = if (showDirectConfig) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        if (wifiDirectState.isActive) {
+                            TextButton(
+                                onClick = { showWifiQrDialog = true }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCode2,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("扫码连热点")
+                            }
+                        }
                     }
 
                     AnimatedVisibility(visible = showDirectConfig) {
@@ -554,4 +577,27 @@ fun HotspotManagerScreen(
             }
         }
     }
+
+    if (showWifiQrDialog && wifiDirectState.isActive) {
+        val activeSsid = wifiDirectState.ssid.ifEmpty { config.wifiDirectSsid }
+        val activePass = wifiDirectState.passphrase.ifEmpty { config.wifiDirectPassphrase }
+        val qrPayload = "WIFI:T:WPA;S:${escapeWifiQrField(activeSsid)};P:${escapeWifiQrField(activePass)};;"
+        QrCodeDialog(
+            title = "扫码连接直连热点",
+            content = qrPayload,
+            displayText = "使用手机系统相机或 Wi-Fi 扫一扫连接\n" +
+                "热点名称: $activeSsid\n" +
+                "连接后将代理设为: ${wifiDirectState.gatewayIp}:${config.httpPort}",
+            onDismiss = { showWifiQrDialog = false }
+        )
+    }
+}
+
+private fun escapeWifiQrField(value: String): String {
+    return value
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace(":", "\\:")
+        .replace("\"", "\\\"")
 }

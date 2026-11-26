@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
 
@@ -34,6 +35,7 @@ import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
 fun QrCodeDialog(
     title: String,
     content: String,
+    displayText: String = content,
     onDismiss: () -> Unit
 ) {
     val qrBitmap = remember(content) {
@@ -80,7 +82,7 @@ fun QrCodeDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = content,
+                    text = displayText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -102,7 +104,8 @@ fun QrCodeDialog(
 private fun generateQrBitmap(content: String, size: Int): Bitmap? {
     return try {
         val writer = QRCodeWriter()
-        val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size)
+        val hints = mapOf(EncodeHintType.CHARACTER_SET to "UTF-8")
+        val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size, hints)
         val width = bitMatrix.width
         val height = bitMatrix.height
         val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
