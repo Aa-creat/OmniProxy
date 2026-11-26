@@ -25,6 +25,8 @@ class PreferencesManager(private val context: Context) {
         val USERNAME = stringPreferencesKey("username")
         val PASSWORD = stringPreferencesKey("password")
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
+        val WIFI_DIRECT_SSID = stringPreferencesKey("wifi_direct_ssid")
+        val WIFI_DIRECT_PASSPHRASE = stringPreferencesKey("wifi_direct_passphrase")
     }
 
     val configFlow: Flow<ProxyConfig> = context.dataStore.data.map { pref ->
@@ -38,7 +40,9 @@ class PreferencesManager(private val context: Context) {
             bindAddress = pref[Keys.BIND_ADDRESS] ?: "0.0.0.0",
             username = pref[Keys.USERNAME] ?: "",
             password = pref[Keys.PASSWORD] ?: "",
-            autoStartOnBoot = pref[Keys.AUTO_START_ON_BOOT] ?: false
+            autoStartOnBoot = pref[Keys.AUTO_START_ON_BOOT] ?: false,
+            wifiDirectSsid = pref[Keys.WIFI_DIRECT_SSID] ?: "DIRECT-OP-OmniProxy",
+            wifiDirectPassphrase = pref[Keys.WIFI_DIRECT_PASSPHRASE] ?: "12345678"
         )
     }
 
@@ -79,6 +83,13 @@ class PreferencesManager(private val context: Context) {
     suspend fun updateAutoStart(enabled: Boolean) {
         context.dataStore.edit { pref ->
             pref[Keys.AUTO_START_ON_BOOT] = enabled
+        }
+    }
+
+    suspend fun updateWifiDirectConfig(ssid: String, passphrase: String) {
+        context.dataStore.edit { pref ->
+            pref[Keys.WIFI_DIRECT_SSID] = ssid
+            pref[Keys.WIFI_DIRECT_PASSPHRASE] = passphrase
         }
     }
 }

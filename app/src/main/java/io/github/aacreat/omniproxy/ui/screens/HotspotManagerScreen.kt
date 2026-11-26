@@ -2,6 +2,8 @@ package io.github.aacreat.omniproxy.ui.screens
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,9 +31,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,8 +46,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aacreat.omniproxy.core.data.PreferencesManager
 import io.github.aacreat.omniproxy.core.model.HotspotClient
+import io.github.aacreat.omniproxy.core.model.ProxyConfig
 import io.github.aacreat.omniproxy.core.network.NetworkManager
+import io.github.aacreat.omniproxy.core.network.WifiDirectManager
 import io.github.aacreat.omniproxy.ui.theme.AccentOnline
 import io.github.aacreat.omniproxy.ui.theme.CardInnerShape
 import io.github.aacreat.omniproxy.ui.theme.HeroCardShape
@@ -50,16 +58,31 @@ import io.github.aacreat.omniproxy.ui.theme.PillShape
 import kotlinx.coroutines.launch
 
 @Composable
-fun HotspotManagerScreen(networkManager: NetworkManager) {
+fun HotspotManagerScreen(
+    prefs: PreferencesManager,
+    networkManager: NetworkManager,
+    wifiDirectManager: WifiDirectManager
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var clients by remember { mutableStateOf<List<HotspotClient>>(emptyList()) }
+    val config by prefs.configFlow.collectAsState(initial = ProxyConfig())
+    val wifiDirectState by wifiDirectManager.state.collectAsState()
 
-    val interfaces = remember { networkManager.getActiveInterfaces() }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            wifiDirectManager.startGroup(config.wifiDirectSsid, config.wifiDirectPassphrase)
+        }
+    }
+
+    val interfaces = remember(wifiDirectState.isActive) { networkManager.getActiveInterfaces() }
     val hotspotInterface = interfaces.firstOrNull { it.isHotspot }
     val isVpnActive = remember { networkManager.isVpnConnected() }
 
     fun refreshClients() {
+        wifiDirectManager.refreshGroupInfo()
         scope.launch {
             clients = networkManager.getHotspotClients()
         }
@@ -145,6 +168,107 @@ fun HotspotManagerScreen(networkManager: NetworkManager) {
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            shape = HeroCardShape,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    if (wifiDirectState.isActive) AccentOnline else MaterialTheme.colorScheme.surface,
+                                    PillShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = null,
+                                tint = if (wifiDirectState.isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "WLAN 直连热点 (Wi-Fi Direct)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = when {
+                                    wifiDirectState.isBusy -> "正在切换直连热点状态..."
+                                    wifiDirectState.isActive -> "已开启 • 可共享本机 Wi-Fi / VPN"
+                                    else -> "免系统热点开关，直接建立直连热点"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = wifiDirectState.isActive,
+                        enabled = wifiDirectState.isSupported && !wifiDirectState.isBusy,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                if (wifiDirectManager.hasRequiredPermission()) {
+                                    wifiDirectManager.startGroup(
+                                        config.wifiDirectSsid,
+                                        config.wifiDirectPassphrase
+                                    )
+                                } else {
+                                    permissionLauncher.launch(wifiDirectManager.requiredPermission())
+                                }
+                            } else {
+                                wifiDirectManager.stopGroup()
+                            }
+                        }
+                    )
+                }
+
+                if (wifiDirectState.isActive) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "热点名称: ${wifiDirectState.ssid.ifEmpty { config.wifiDirectSsid }}\n" +
+                            "热点密码: ${wifiDirectState.passphrase.ifEmpty { config.wifiDirectPassphrase }}\n" +
+                            "代理网关: ${wifiDirectState.gatewayIp}:${config.httpPort}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "提示：其他设备连接上述 Wi-Fi 后，在高级选项中将代理设为 ${wifiDirectState.gatewayIp}:${config.httpPort} 即可上网。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (!wifiDirectState.errorMessage.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = wifiDirectState.errorMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }

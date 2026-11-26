@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aacreat.omniproxy.core.data.PreferencesManager
 import io.github.aacreat.omniproxy.core.model.ProxyConfig
 import io.github.aacreat.omniproxy.core.network.NetworkManager
+import io.github.aacreat.omniproxy.core.network.WifiDirectManager
 import io.github.aacreat.omniproxy.service.OmniProxyService
 import io.github.aacreat.omniproxy.ui.components.ExpressiveProxyCard
 import io.github.aacreat.omniproxy.ui.components.NetworkBanner
@@ -49,21 +50,29 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(
     prefs: PreferencesManager,
-    networkManager: NetworkManager
+    networkManager: NetworkManager,
+    wifiDirectManager: WifiDirectManager
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val config by prefs.configFlow.collectAsState(initial = ProxyConfig())
     val isRunning by OmniProxyService.isRunningState.collectAsState()
     val stats by OmniProxyService.statsState.collectAsState()
+    val wifiDirectState by wifiDirectManager.state.collectAsState()
 
     var qrCodeContent by remember { mutableStateOf<String?>(null) }
 
-    val recommendedHost = remember { networkManager.getRecommendedHost() }
-    val isHotspotActive = remember {
-        networkManager.getActiveInterfaces().any { it.isHotspot }
+    val recommendedHost = remember(wifiDirectState.isActive, wifiDirectState.gatewayIp, isRunning) {
+        if (wifiDirectState.isActive && wifiDirectState.gatewayIp.isNotEmpty()) {
+            wifiDirectState.gatewayIp
+        } else {
+            networkManager.getRecommendedHost()
+        }
     }
-    val isVpnActive = remember { networkManager.isVpnConnected() }
+    val isHotspotActive = remember(wifiDirectState.isActive, isRunning) {
+        wifiDirectState.isActive || networkManager.getActiveInterfaces().any { it.isHotspot }
+    }
+    val isVpnActive = remember(isRunning) { networkManager.isVpnConnected() }
 
     val scrollState = rememberScrollState()
 

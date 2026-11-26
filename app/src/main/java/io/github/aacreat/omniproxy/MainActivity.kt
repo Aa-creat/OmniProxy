@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.aacreat.omniproxy.core.data.PreferencesManager
 import io.github.aacreat.omniproxy.core.network.NetworkManager
+import io.github.aacreat.omniproxy.core.network.WifiDirectManager
 import io.github.aacreat.omniproxy.service.OmniProxyService
 import io.github.aacreat.omniproxy.ui.screens.DashboardScreen
 import io.github.aacreat.omniproxy.ui.screens.HotspotManagerScreen
@@ -66,10 +67,15 @@ class MainActivity : ComponentActivity() {
 
         val prefs = PreferencesManager(this)
         val networkManager = NetworkManager(this)
+        val wifiDirectManager = WifiDirectManager(this)
 
         setContent {
             OmniProxyTheme {
-                MainScreen(prefs = prefs, networkManager = networkManager)
+                MainScreen(
+                    prefs = prefs,
+                    networkManager = networkManager,
+                    wifiDirectManager = wifiDirectManager
+                )
             }
         }
     }
@@ -85,7 +91,8 @@ enum class NavItem(val label: String, val icon: ImageVector) {
 @Composable
 fun MainScreen(
     prefs: PreferencesManager,
-    networkManager: NetworkManager
+    networkManager: NetworkManager,
+    wifiDirectManager: WifiDirectManager
 ) {
     var selectedIndex by remember { mutableIntStateOf(0) }
     val isRunning by OmniProxyService.isRunningState.collectAsState()
@@ -135,8 +142,16 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             when (selectedIndex) {
-                0 -> DashboardScreen(prefs = prefs, networkManager = networkManager)
-                1 -> HotspotManagerScreen(networkManager = networkManager)
+                0 -> DashboardScreen(
+                    prefs = prefs,
+                    networkManager = networkManager,
+                    wifiDirectManager = wifiDirectManager
+                )
+                1 -> HotspotManagerScreen(
+                    prefs = prefs,
+                    networkManager = networkManager,
+                    wifiDirectManager = wifiDirectManager
+                )
                 2 -> SettingsScreen(prefs = prefs)
             }
         }

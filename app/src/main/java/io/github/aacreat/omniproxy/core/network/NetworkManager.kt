@@ -30,10 +30,10 @@ class NetworkManager(private val context: Context) {
                         val name = intf.name
                         val isHotspot = name.contains("ap", ignoreCase = true) ||
                                 name.contains("swlan", ignoreCase = true) ||
-                                name.contains("rndis", ignoreCase = true)
-                        val isVpn = name.contains("tun", ignoreCase = true) ||
-                                name.contains("ppp", ignoreCase = true) ||
+                                name.contains("rndis", ignoreCase = true) ||
                                 name.contains("p2p", ignoreCase = true)
+                        val isVpn = name.contains("tun", ignoreCase = true) ||
+                                name.contains("ppp", ignoreCase = true)
                         val isWifi = name.contains("wlan", ignoreCase = true) && !isHotspot
 
                         val displayName = when {
