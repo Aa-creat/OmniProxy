@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
+import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -22,6 +23,7 @@ data class WifiDirectState(
     val passphrase: String = "",
     val interfaceName: String = "",
     val gatewayIp: String = "192.168.49.1",
+    val frequencyMhz: Int = 0,
     val clientCount: Int = 0,
     val errorMessage: String? = null
 )
@@ -32,6 +34,7 @@ class WifiDirectManager(context: Context) {
     private val wifiP2pManager: WifiP2pManager? =
         appContext.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
     private var channel: WifiP2pManager.Channel? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val _state = MutableStateFlow(
         WifiDirectState(isSupported = wifiP2pManager != null)
@@ -64,7 +67,7 @@ class WifiDirectManager(context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun startGroup(customSsid: String, customPassphrase: String) {
+    fun startGroup(customSsid: String, customPassphrase: String, band: Int = BAND_AUTO) {
         val manager = wifiP2pManager
         val ch = channel
         if (manager == null || ch == null) {
@@ -85,7 +88,7 @@ class WifiDirectManager(context: Context) {
 
         val actionListener = object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                refreshGroupInfo()
+                mainHandler.postDelayed({ refreshGroupInfo() }, 400)
             }
 
             override fun onFailure(reason: Int) {
@@ -105,10 +108,16 @@ class WifiDirectManager(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val normalizedSsid = normalizeDirectSsid(customSsid)
             val normalizedPass = if (customPassphrase.length in 8..63) customPassphrase else "12345678"
+            val targetBand = when (band) {
+                BAND_2GHZ -> WifiP2pConfig.GROUP_OWNER_BAND_2GHZ
+                BAND_5GHZ -> WifiP2pConfig.GROUP_OWNER_BAND_5GHZ
+                else -> WifiP2pConfig.GROUP_OWNER_BAND_AUTO
+            }
             try {
                 val config = WifiP2pConfig.Builder()
                     .setNetworkName(normalizedSsid)
                     .setPassphrase(normalizedPass)
+                    .setGroupOperatingBand(targetBand)
                     .build()
                 manager.createGroup(ch, config, actionListener)
             } catch (e: Exception) {
@@ -118,6 +127,24 @@ class WifiDirectManager(context: Context) {
         } else {
             manager.createGroup(ch, actionListener)
         }
+    }
+
+    fun restartGroup(customSsid: String, customPassphrase: String, band: Int = BAND_AUTO) {
+        val manager = wifiP2pManager ?: return
+        val ch = channel ?: return
+        _state.value = _state.value.copy(isBusy = true, errorMessage = null)
+        manager.removeGroup(ch, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() {
+                mainHandler.postDelayed({
+                    startGroup(customSsid, customPassphrase, band)
+                }, 400)
+            }
+
+            override fun onFailure(reason: Int) {
+                // If no group existed or removal failed, still attempt starting with the new config
+                startGroup(customSsid, customPassphrase, band)
+            }
+        })
     }
 
     fun stopGroup() {
@@ -146,6 +173,7 @@ class WifiDirectManager(context: Context) {
 
         manager.requestGroupInfo(ch) { group ->
             if (group != null && group.isGroupOwner) {
+                val freq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) group.frequency else 0
                 manager.requestConnectionInfo(ch) { connInfo ->
                     val gateway = connInfo?.groupOwnerAddress?.hostAddress ?: "192.168.49.1"
                     _state.value = _state.value.copy(
@@ -156,6 +184,7 @@ class WifiDirectManager(context: Context) {
                         passphrase = group.passphrase.orEmpty(),
                         interfaceName = group.`interface`.orEmpty(),
                         gatewayIp = gateway,
+                        frequencyMhz = freq,
                         clientCount = group.clientList?.size ?: 0,
                         errorMessage = null
                     )
@@ -164,13 +193,18 @@ class WifiDirectManager(context: Context) {
                 _state.value = _state.value.copy(
                     isSupported = true,
                     isActive = false,
-                    isBusy = false
+                    isBusy = false,
+                    frequencyMhz = 0
                 )
             }
         }
     }
 
     companion object {
+        const val BAND_AUTO = 0
+        const val BAND_2GHZ = 1
+        const val BAND_5GHZ = 2
+
         private val DIRECT_PREFIX_REGEX = Regex("^DIRECT-[A-Za-z0-9]{2}.*")
 
         fun normalizeDirectSsid(raw: String): String {
@@ -179,6 +213,14 @@ class WifiDirectManager(context: Context) {
                 trimmed.take(32)
             } else {
                 "DIRECT-OP-$trimmed".take(32)
+            }
+        }
+
+        fun formatFrequency(freqMhz: Int): String {
+            return when {
+                freqMhz >= 5000 -> "5 GHz (${freqMhz} MHz)"
+                freqMhz >= 2400 -> "2.4 GHz (${freqMhz} MHz)"
+                else -> "自动"
             }
         }
     }

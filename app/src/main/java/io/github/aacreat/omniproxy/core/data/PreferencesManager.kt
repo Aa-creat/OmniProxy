@@ -27,6 +27,7 @@ class PreferencesManager(private val context: Context) {
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
         val WIFI_DIRECT_SSID = stringPreferencesKey("wifi_direct_ssid")
         val WIFI_DIRECT_PASSPHRASE = stringPreferencesKey("wifi_direct_passphrase")
+        val WIFI_DIRECT_BAND = intPreferencesKey("wifi_direct_band")
     }
 
     val configFlow: Flow<ProxyConfig> = context.dataStore.data.map { pref ->
@@ -42,7 +43,8 @@ class PreferencesManager(private val context: Context) {
             password = pref[Keys.PASSWORD] ?: "",
             autoStartOnBoot = pref[Keys.AUTO_START_ON_BOOT] ?: false,
             wifiDirectSsid = pref[Keys.WIFI_DIRECT_SSID] ?: "DIRECT-OP-OmniProxy",
-            wifiDirectPassphrase = pref[Keys.WIFI_DIRECT_PASSPHRASE] ?: "12345678"
+            wifiDirectPassphrase = pref[Keys.WIFI_DIRECT_PASSPHRASE] ?: "12345678",
+            wifiDirectBand = pref[Keys.WIFI_DIRECT_BAND] ?: 0
         )
     }
 
@@ -86,10 +88,11 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun updateWifiDirectConfig(ssid: String, passphrase: String) {
+    suspend fun updateWifiDirectConfig(ssid: String, passphrase: String, band: Int) {
         context.dataStore.edit { pref ->
             pref[Keys.WIFI_DIRECT_SSID] = ssid
             pref[Keys.WIFI_DIRECT_PASSPHRASE] = passphrase
+            pref[Keys.WIFI_DIRECT_BAND] = band
         }
     }
 }

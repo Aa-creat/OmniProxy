@@ -41,9 +41,6 @@ fun SettingsScreen(prefs: PreferencesManager) {
 
     var userText by remember(config.username) { mutableStateOf(config.username) }
     var passText by remember(config.password) { mutableStateOf(config.password) }
-    var directSsidText by remember(config.wifiDirectSsid) { mutableStateOf(config.wifiDirectSsid) }
-    var directPassText by remember(config.wifiDirectPassphrase) { mutableStateOf(config.wifiDirectPassphrase) }
-    var directSavedHint by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -110,91 +107,6 @@ fun SettingsScreen(prefs: PreferencesManager) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("保存凭据")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Wi-Fi Direct 直连热点设置",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            shape = HeroCardShape,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = "直连热点名称与密码",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "适用于系统隐藏热点入口的 Wi-Fi 平板：通过 WLAN 直连创建热点并共享本机 Wi-Fi 或 VPN。名称若未以 DIRECT-xx 开头将自动补全前缀；密码至少 8 位。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = directSsidText,
-                    onValueChange = {
-                        directSsidText = it
-                        directSavedHint = null
-                    },
-                    label = { Text("热点名称 (SSID)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = directPassText,
-                    onValueChange = {
-                        directPassText = it
-                        directSavedHint = null
-                    },
-                    label = { Text("热点密码 (8-63 位)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (directSavedHint != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = directSavedHint!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        val trimmedPass = directPassText.trim()
-                        if (trimmedPass.length < 8 || trimmedPass.length > 63) {
-                            directSavedHint = "密码长度需在 8 到 63 位之间"
-                            return@Button
-                        }
-                        scope.launch {
-                            val normalizedSsid = io.github.aacreat.omniproxy.core.network.WifiDirectManager
-                                .normalizeDirectSsid(directSsidText)
-                            directSsidText = normalizedSsid
-                            prefs.updateWifiDirectConfig(normalizedSsid, trimmedPass)
-                            directSavedHint = "已保存，重新开启直连热点后生效"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("保存直连热点配置")
                 }
             }
         }
