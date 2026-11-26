@@ -39,7 +39,7 @@ jobs:
       - name: Run Go Unit Tests
         run: |
           cd core-proxy-go
-          go test -v ./...
+          go test -v ./pkg/...
 
       - name: Compile Go Native Libraries (.so)
         run: |
