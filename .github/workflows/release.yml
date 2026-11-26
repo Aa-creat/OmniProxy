@@ -98,19 +98,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           prerelease: true
+          generate_release_notes: true
           tag_name: ${{ github.ref_name }}
           name: OmniProxy ${{ github.ref_name }}
           body: |
-            ### 🚀 OmniProxy (MD3E Expressive) 预发布版本
-
-            本版本已由 GitHub Actions 自动化构建，并经过 zipalign 内存优化与 apksigner (v1/v2/v3) 严格签名校验。
-
-            #### ✨ 核心特性：
-            - **Material Design 3 Expressive (MD3E)**：全套弹簧物理动效、大圆角与药丸几何形变、Monet 动态配色；
-            - **Go 原生网络核心驱动 (`libomniproxy.so`)**：高并发 HTTP/HTTPS CONNECT 隧道与 SOCKS5 代理；
-            - **VPN 热点共享与穿透**：单设备开启 VPN + 热点，从设备连入自动走本机 VPN 路由出口；
-            - **热点设备管理**：基于网络邻居/ARP 实时查看连接到热点的从设备与 IP/MAC；
-            - **PAC 动态配置与一键二维码配网**。
+            ### 🚀 OmniProxy ${{ github.ref_name }}
+            本版本已由 GitHub Actions 自动完成 Go/Android 单元测试、`zipalign` 对齐与 `apksigner` (v1/v2/v3) 生产密钥签名校验。
           files: |
             release-artifacts/OmniProxy-release.apk
             release-artifacts/checksums-sha256.txt
